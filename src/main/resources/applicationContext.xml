@@ -7,8 +7,20 @@
            http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.0.xsd
            http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.0.xsd">
 
-    <bean id="logAspect" class="com.lyh.systemlog.LogAspect"/>
+    <bean id="logAspect" class="com.lyh.systemlog.LogAspect">
+        <property name="freeMarkerConfigurer" ref="freeMarkerConfigurer"/>
+    </bean>
     <bean name="userService" class="com.lyh.systemlog.service.impl.UserServiceImpl"/>
+    <bean id="freeMarkerConfigurer" class="org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer">
+         <property name="templateLoaderPath" value="classpath:."/>
+        <property name="freemarkerSettings">
+            <props>
+                <prop key="template_update_delay">0</prop>
+                <prop key="default_encoding">UTF-8</prop>
+                <prop key="locale">zh_CN</prop>
+            </props>
+        </property>
+    </bean>
     <aop:aspectj-autoproxy/>
     <aop:config>
         <aop:aspect ref="logAspect">

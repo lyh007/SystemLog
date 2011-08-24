@@ -1,6 +1,10 @@
 package com.lyh.systemlog;
 
 import com.lyh.systemlog.annotation.SystemLog;
+import com.lyh.systemlog.freemarker.StringTemplateLoader;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.velocity.VelocityContext;
@@ -8,9 +12,14 @@ import org.apache.velocity.app.Velocity;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
+import org.springframework.ui.freemarker.FreeMarkerConfigurationFactoryBean;
+import org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author kevin
@@ -41,7 +50,7 @@ public class LogAspect {
         //获取操作名称
         String operateName = systemLogAnnotation.operateName();
         //解析描述
-        String description = executeTemplate(systemLogAnnotation.value(), joinPoint);
+        String description = executeTemplateFreeMarker(systemLogAnnotation.value(), joinPoint);
         System.out.println("解析后描述为：" + description);
         //这里保存日志到库中
         //方法执行前拦截
@@ -55,7 +64,40 @@ public class LogAspect {
      * @param joinPoint 连接点
      * @return 解析后描述
      */
-    private String executeTemplate(String template, ProceedingJoinPoint joinPoint) {
+    private String executeTemplateFreeMarker(String template, ProceedingJoinPoint joinPoint) {
+        //获取被调用的方法
+        Method method = getMethod(joinPoint);
+        //获取方法中定义的参数名称
+        String[] parameterNames = parameterNameDiscovere.getParameterNames(method);
+        //获取参数实例对象
+        Object[] args = joinPoint.getArgs();
+        Configuration configuration = freeMarkerConfigurer.getConfiguration();
+        configuration.setTemplateLoader(new StringTemplateLoader(template));
+        StringWriter writer = new StringWriter();
+        try {
+            Template freeMarkerTemplate = configuration.getTemplate("");
+            Map context = new HashMap();
+            for (int i = 0; i < parameterNames.length; i++) {
+                context.put(parameterNames[i], args[i]);
+            }
+            context.put("ip", "192.168.0.32");
+            freeMarkerTemplate.process(context, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (TemplateException e) {
+            e.printStackTrace();
+        }
+        return writer.toString();
+    }
+
+    /**
+     * 解析执行SystemLog的value模板。
+     *
+     * @param template  描述模板
+     * @param joinPoint 连接点
+     * @return 解析后描述
+     */
+    private String executeTemplateVelocity(String template, ProceedingJoinPoint joinPoint) {
         //获取被调用的方法
         Method method = getMethod(joinPoint);
         //获取方法中定义的参数名称
@@ -100,5 +142,24 @@ public class LogAspect {
             }
         }
         return resultMethod;
+    }
+
+    private FreeMarkerConfigurer freeMarkerConfigurer;
+    private FreeMarkerConfigurationFactoryBean freeMarkerConfiguration;
+
+    public FreeMarkerConfigurer getFreeMarkerConfigurer() {
+        return freeMarkerConfigurer;
+    }
+
+    public void setFreeMarkerConfigurer(FreeMarkerConfigurer freeMarkerConfigurer) {
+        this.freeMarkerConfigurer = freeMarkerConfigurer;
+    }
+
+    public FreeMarkerConfigurationFactoryBean getFreeMarkerConfiguration() {
+        return freeMarkerConfiguration;
+    }
+
+    public void setFreeMarkerConfiguration(FreeMarkerConfigurationFactoryBean freeMarkerConfiguration) {
+        this.freeMarkerConfiguration = freeMarkerConfiguration;
     }
 }
